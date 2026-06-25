@@ -1,0 +1,9 @@
+{
+  "agent_id": "email_drafter",
+  "name": "Email Drafter",
+  "description": "Draft an email. Args: purpose (str), context (str), target (str, default 'advisor').",
+  "category": "writing",
+  "required_fields": [],
+  "output_fields": ["dynamic_storage.email_draft"],
+  "token_budget": 4000
+}

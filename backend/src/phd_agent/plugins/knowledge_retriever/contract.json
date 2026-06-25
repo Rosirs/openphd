@@ -1,0 +1,9 @@
+{
+  "agent_id": "knowledge_retriever",
+  "name": "Knowledge Retriever",
+  "description": "Retrieve knowledge from a backend. Args: query (str), backend (str, default 'arxiv'), max_results (int, default 5).",
+  "category": "academic",
+  "required_fields": [],
+  "output_fields": ["dynamic_storage.retrieved"],
+  "token_budget": 0
+}

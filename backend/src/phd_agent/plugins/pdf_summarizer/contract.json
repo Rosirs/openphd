@@ -1,0 +1,9 @@
+{
+  "agent_id": "pdf_summarizer",
+  "name": "Text/PDF Summarizer",
+  "description": "Summarize a piece of text. Args: text (str), focus (str, default '').",
+  "category": "writing",
+  "required_fields": [],
+  "output_fields": ["dynamic_storage.summary"],
+  "token_budget": 4000
+}

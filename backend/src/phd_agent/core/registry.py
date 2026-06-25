@@ -11,7 +11,7 @@ class AgentRegistry:
         self._dir = plugins_dir
         self._contracts: dict[str, AgentContract] = {}
         self._classes: dict[str, type[BaseAgent]] = {}
-        self._composite_defs: dict[str, object] = {}  # tool_id -> CompositeToolDefinition
+        self._composite_defs: dict[str, object] = {}
         if plugins_dir is not None:
             self._scan()
 
@@ -28,7 +28,6 @@ class AgentRegistry:
             self._contracts[contract.agent_id] = contract
 
     def register(self, contract: AgentContract, cls: type[BaseAgent]) -> None:
-        """Manually register a plugin (used when contract.json is not present, e.g. tests)."""
         self._contracts[contract.agent_id] = contract
         self._classes[contract.agent_id] = cls
 
@@ -49,7 +48,6 @@ class AgentRegistry:
         return self._classes[agent_id]()
 
     def load_composites(self, composite_list) -> None:
-        """Register a list of CompositeToolDefinition objects."""
         self._composite_defs = {t.tool_id: t for t in composite_list}
 
     def is_composite(self, name: str) -> bool:
@@ -57,6 +55,13 @@ class AgentRegistry:
 
     def get_composite_def(self, name: str):
         return self._composite_defs[name]
+
+    async def load_user_composites(self, user_id: str) -> None:
+        """Load composite tools for a user from JsonFileRepository."""
+        from phd_agent.api.deps import get_repo
+        repo = get_repo()
+        tools = await repo.list_composite_tools(user_id)
+        self.load_composites(tools)
 
     def _contract_to_spec(self, contract: AgentContract) -> dict:
         return {
@@ -75,7 +80,6 @@ class AgentRegistry:
         }
 
     async def list_my_tools(self, user_id: str) -> list[dict]:
-        """All tools visible to this user (atomic + composite)."""
         atomic = [self._contract_to_spec(c) for c in self._contracts.values()]
         composite = [self._composite_to_spec(t) for t in self._composite_defs.values()]
         return atomic + composite

@@ -1,0 +1,9 @@
+{
+  "agent_id": "arxiv_search",
+  "name": "ArXiv Search",
+  "description": "Search arXiv for papers. Args: query (str), max_results (int, default 5).",
+  "category": "academic",
+  "required_fields": [],
+  "output_fields": ["dynamic_storage.arxiv_results"],
+  "token_budget": 0
+}

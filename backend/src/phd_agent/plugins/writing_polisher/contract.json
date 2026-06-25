@@ -1,0 +1,9 @@
+{
+  "agent_id": "writing_polisher",
+  "name": "Writing Polisher",
+  "description": "Polish a piece of text. Args: text (str), style (str, default 'academic').",
+  "category": "writing",
+  "required_fields": [],
+  "output_fields": ["dynamic_storage.polished_text"],
+  "token_budget": 4000
+}

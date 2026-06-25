@@ -1,0 +1,10 @@
+{
+  "agent_id": "mock_logger",
+  "name": "Mock Logger",
+  "description": "Appends dynamic_storage.echo_output to dynamic_storage.run_log",
+  "category": "mock",
+  "required_fields": ["dynamic_storage.echo_output"],
+  "output_fields": ["dynamic_storage.run_log"],
+  "token_budget": 0,
+  "isolation": "in_process"
+}

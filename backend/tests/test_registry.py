@@ -63,3 +63,9 @@ async def test_loaded_agent_can_execute(plugins_dir: Path):
     state = GlobalState(user_id="u1")
     await agent.run(state)
     assert state.dynamic_storage["marker"] == "echo_test_ran"
+
+def test_real_plugins_dir_scans_mock_agents():
+    real_plugins = Path(__file__).resolve().parent.parent / "src" / "phd_agent" / "plugins"
+    reg = AgentRegistry(real_plugins)
+    assert "mock_echo" in reg.list_agent_ids()
+    assert "mock_logger" in reg.list_agent_ids()

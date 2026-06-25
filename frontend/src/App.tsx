@@ -26,6 +26,12 @@ export default function App() {
         dynamic_storage: { echo_input: 'hello from frontend' },
       });
       setFinalData({ run_id: result.run_id, status: result.status });
+      apiClient.subscribeEvents(result.run_id, (e) => {
+        setEvents(prev => [...prev, e]);
+        if (e.status === 'end' && e.output) {
+          setFinalData(e.output);
+        }
+      });
     } catch (e) {
       console.error(e);
     }

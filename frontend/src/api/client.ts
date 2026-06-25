@@ -1,4 +1,4 @@
-import type { AgentContract, RunResponse } from './types';
+import type { AgentContract, RunResponse, SseEvent } from './types';
 
 const BASE = '/api';
 
@@ -22,5 +22,15 @@ export const apiClient = {
     });
     if (!r.ok) throw new Error(`run failed: ${r.status}`);
     return r.json();
+  },
+
+  subscribeEvents(runId: string, onEvent: (e: SseEvent) => void): () => void {
+    const es = new EventSource(`${BASE}/pipelines/${runId}/events`);
+    es.onmessage = (msg) => {
+      const ev = JSON.parse(msg.data) as SseEvent;
+      onEvent(ev);
+      if (ev.status === 'end') es.close();
+    };
+    return () => es.close();
   },
 };

@@ -37,4 +37,5 @@ export interface SseEvent {
   status: string;
   duration_ms: number;
   error: string | null;
+  output?: Record<string, unknown>;
 }

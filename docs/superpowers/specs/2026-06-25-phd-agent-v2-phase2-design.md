@@ -24,7 +24,7 @@
 - ✅ 动态 tool 列表(LLM 通过 `list_my_tools` 查可用工具)
 - ✅ 用户自定义工具(画布拖拽 → 保存为 composite tool → 出现在 LLM 可用列表)
 - ✅ JsonFileRepository 持久化(对话、状态、composite 工具)
-- ✅ CentralRouter 删除,PipelineOrchestrator 重命名为 CompositeToolExecutor
+- ✅ CentralRouter 删除,PipelineOrchestrator 整体删除(由 LLM-driven `CompositeAgent` 取代)
 - ❌ 不交付:多用户鉴权、SQLite 持久化、插件热加载、PubMed 等其他后端实现、生产部署
 
 ### 1.3 后续阶段(不在本 spec 范围)
@@ -43,12 +43,15 @@
 | 画布角色 | 降级为「自定义工具构建器」 | 用户拖出 composite tool,保存后出现在 LLM 工具列表 |
 | LLM Provider | MiniMax-m3 (OpenAI 兼容协议) | 与 Phase 1 抽象对齐;env 配置切换 |
 | Tool 列表 | 动态 (LLM 调 `list_my_tools`) | 启动时不预注入,支持运行时新增 composite |
+| **Composite Tool 本质** | **LLM 驱动的嵌套 agent** | 用户拖出 sub_tools + 写 system_prompt,后端拼成完整 sub-agent 上下文,内嵌独立 LLM 循环 |
 | 持久化 | JsonFileRepository,`data/{user_id}/{conversation_id}.json` | 简单可调试;接口化便于 Phase 4 换 SQLite |
 | CentralRouter | 删除 | 13 行 stub,被 LLM 循环取代 |
-| PipelineOrchestrator | 重命名为 CompositeToolExecutor,仅服务于 composite tool | 复用顺序执行逻辑,不再作为主调度 |
+| PipelineOrchestrator | 删除,功能并入 `CompositeAgent`(LLM 驱动版本) | 原顺序执行器不再需要,被 Sub-LLM 取代 |
 | 通用 agent 范围 | 跨学科、跨国、无场景硬编码 | 用户明确要求"通用,不限学科" |
-| 状态模型 | GlobalState 保留,扩展为同时服务 ChatSession | 单一状态源,向后兼容 |
+| 状态模型 | GlobalState 保留,扩展为同时服务 ChatSession + Sub-LLM 隔离上下文 | 单一状态源,向后兼容 |
 | Chat 流式 | SSE(token 级或 message 级) | 与 Phase 1 一致;先做 message 级,Phase 3 升级 token 级 |
+| **Sub-LLM 上下文** | **隔离**(只看自己的 system_prompt + args + 自己的 scratchpad) | 干净,token 可控 |
+| **System prompt 来源** | **用户填 + 后端增强** | 用户提供意图描述,后端拼入 sub_tools 列表 / 行为规范 |
 
 ---
 
@@ -87,11 +90,21 @@
 │  │       - tool_call(name, args)                   │               │
 │  │         ↓                                       │               │
 │  │       ToolExecutor.execute(name, args, state)  │               │
-│  │         (composite tool → CompositeToolExecutor)│               │
+│  │         (composite tool → CompositeAgent)       │               │
 │  │         (atomic tool → AgentWrapper)            │               │
 │  │         ↓                                       │               │
 │  │       tool_result 注入 history → 回到 step 2     │               │
 │  │    4. 超过 max_tool_calls → 强制结束 + 警告      │               │
+│  └────────────────────────────────────────────────┘               │
+│           ↓                                                        │
+│  ┌────────────────────────────────────────────────┐               │
+│  │  CompositeAgent (LLM 驱动的嵌套 agent)          │               │
+│  │  当 LLM 调 composite tool 时被实例化             │               │
+│  │  - 自己的 system_prompt (用户填 + 后端增强)      │               │
+│  │  - 自己的 sub_tools (用户在画布上拖的 agent)     │               │
+│  │  - 自己的 sub_messages (隔离的 scratchpad)       │               │
+│  │  - 自己的 LLM 循环 (max_sub_iterations)         │               │
+│  │  - 返回 final_answer 给顶层 LLM                 │               │
 │  └────────────────────────────────────────────────┘               │
 │           ↓                                                        │
 │  ┌────────────────────────────────────────────────┐               │
@@ -112,7 +125,7 @@
 
 ### 3.1 关键架构变化(相对 Phase 1)
 - **LLM 移出 Agent 内部** → LLM 是 ChatSession 顶层调度者,不再藏在 `agent.run()` 里
-- **PipelineOrchestrator 降级** → 改名为 CompositeToolExecutor,只为 composite tool 服务
+- **PipelineOrchestrator 删除** → 由 LLM-driven `CompositeAgent` 取代,顺序执行器不再需要
 - **CentralRouter 删除** → 13 行 stub,ToolRuntime 内部循环取代
 - **active_pipeline / current_step 退到 composite 内部** → ChatSession 顶层不感知 pipeline 概念
 
@@ -132,16 +145,16 @@ backend/
 │   │   ├── repository.py        ⚠️ 加 JsonFileRepository 实现
 │   │   ├── registry.py          ⚠️ 加 list_my_tools(user_id) 动态查询
 │   │   ├── contract.py          (不变)
-│   │   ├── validator.py         (不变,但调用方从 PipelineOrchestrator 变为 CompositeToolExecutor)
+│   │   ├── validator.py         (不变,但调用方从 PipelineOrchestrator 变为 CompositeAgent)
 │   │   ├── router.py            ❌ 删除
 │   │   ├── wrapper.py           (不变,改名为 agent_wrapper.py 更准确但保持兼容)
 │   │   ├── events.py            ⚠️ 加新事件类型:tool_call_started/completed, message_received
-│   │   ├── orchestrator.py      ❌ 删除(被 CompositeToolExecutor 替代)
+│   │   ├── orchestrator.py      ❌ 删除(被 LLM-driven CompositeAgent 取代)
 │   │   ├── chat.py              🆕 ChatSession 数据模型 + 持久化
 │   │   ├── tool_runtime.py      🆕 LLM 循环 + 工具调度(核心新文件)
 │   │   ├── tool_executor.py     🆕 工具执行分发(atomic → wrapper, composite → executor)
 │   │   ├── composite.py         🆕 CompositeTool 定义 + 持久化
-│   │   └── composite_executor.py 🆕 顺序执行 composite 子图(原 PipelineOrchestrator 改名)
+│   │   └── composite_agent.py   🆕 LLM 驱动的嵌套 agent(composite tool 执行体)
 │   │
 │   ├── api/                     ⚠️ 调整
 │   │   ├── chat.py              🆕 POST /chat/messages, GET /chat/conversations
@@ -199,14 +212,34 @@ class ChatSession(BaseModel):
 ```python
 # core/composite.py
 class CompositeToolDefinition(BaseModel):
-    tool_id: str                                   # user 给的友好名,如 "my_research_finder"
+    tool_id: str                                   # user 给的友好名,如 "ml_paper_summarizer"
     name: str
-    description: str                               # LLM 看到这个就懂怎么调
+    description: str                               # LLM 看到的工具描述(从 system_prompt 摘要)
+    system_prompt: str                             # 🆕 用户填写的意图描述(后端会增强)
+    sub_tools: list[str]                           # 子 agent 列表(如 ["arxiv_search", "writing_polisher"])
     owner_user_id: str                             # 谁的工具
-    sub_pipeline: list[str]                        # agent_id 列表,如 ["arxiv_search", "writing_polisher"]
     is_public: bool = False                        # 未来:用户分享工具
     created_at: datetime
     updated_at: datetime
+```
+
+**System Prompt 增强模板**(后端拼接规则)
+```python
+# core/composite.py
+SYSTEM_PROMPT_TEMPLATE = """你是 {name}。
+
+{user_intent}
+
+你可以调用以下子工具完成你的任务:
+{tool_list}
+
+行为规范:
+- 收到任务后,自主决定调用哪些子工具、按什么顺序调用
+- 子工具结果会反馈给你,你可以根据结果决定下一步
+- 完成所有工作后,给出简洁的最终结果(不要重复中间过程)
+- 最多调用 {max_sub_iterations} 次子工具
+"""
+# 后端 _build_system_prompt() 把 user_intent / tool_list / max_sub_iterations 填入模板
 ```
 
 **ToolSpec**(LLM 看到的工具 schema)
@@ -326,39 +359,95 @@ class ToolRuntime:
 ```python
 # core/tool_executor.py
 class ToolExecutor:
-    def __init__(self, registry, wrapper, composite_executor, bus):
+    def __init__(self, registry, wrapper, composite_agent_factory, bus):
         self.registry = registry
         self.wrapper = wrapper                    # AgentWrapper
-        self.composite_executor = composite_executor  # CompositeToolExecutor
+        self.composite_agent_factory = composite_agent_factory  # CompositeAgent
         self.bus = bus
 
     async def execute(self, *, name: str, args: dict, state: GlobalState) -> ToolResult:
         spec = await self.registry.get_tool(name, state.user_id)
         if spec.is_composite:
-            # composite tool 走子图顺序执行
-            return await self.composite_executor.run(
-                tool=spec.composite_def, state=state,
-            )
+            # composite tool 启动嵌套 LLM agent
+            agent = self.composite_agent_factory(spec.composite_def)
+            return await agent.run(args=args, state=state)
         # atomic tool 走 AgentWrapper
         return await self.wrapper.execute_one(state, name, args)
 ```
 
-### 4.5 CompositeToolExecutor(原 PipelineOrchestrator 改名)
+### 4.5 CompositeAgent(LLM 驱动的嵌套 agent)
 
-签名变化:
 ```python
-# 旧
-async def run(self, user_id: str, active_pipeline: list[str], ...) -> str
+# core/composite_agent.py
+class CompositeAgent:
+    def __init__(self, definition: CompositeToolDefinition, llm, wrapper, bus, max_sub_iterations=5):
+        self.definition = definition
+        self.llm = llm
+        self.wrapper = wrapper
+        self.bus = bus
+        self.max_sub_iterations = max_sub_iterations
 
-# 新
-async def run(self, *, tool: CompositeToolDefinition, state: GlobalState) -> ToolResult
+    async def run(self, *, args: dict, state: GlobalState) -> ToolResult:
+        # 1. 构造隔离 sub-context
+        sub_messages = [
+            Message(role="system", content=self._build_system_prompt(), timestamp=now()),
+            Message(role="user", content=f"任务输入: {args}", timestamp=now()),
+        ]
+        # 2. 构造 sub-tool 列表(只暴露 sub_tools)
+        sub_tools = [self._spec_for(t) for t in self.definition.sub_tools]
+
+        # 3. Sub-LLM 循环
+        for i in range(self.max_sub_iterations):
+            response = await self.llm.chat(
+                messages=[m.to_llm_dict() for m in sub_messages],
+                tools=[t.model_dump() for t in sub_tools],
+                model="MiniMax-m3",
+            )
+            self.bus.publish(Event(type="sub_llm_iteration", iter=i, ...))
+
+            if not response.tool_calls:
+                # Sub-LLM 给出最终答案
+                return ToolResult(
+                    tool_name=self.definition.tool_id,
+                    success=True,
+                    summary=response.content[:200],
+                    llm_context=response.content,
+                    state_delta={},
+                )
+
+            sub_messages.append(Message(
+                role="assistant", content=response.content,
+                tool_calls=response.tool_calls, timestamp=now(),
+            ))
+            for tc in response.tool_calls:
+                self.bus.publish(Event(type="sub_tool_call", name=tc.name, args=tc.args, ...))
+                # 子 agent 调用 atomic tool(不能再调 composite,防止递归)
+                sub_result = await self.wrapper.execute_one(state, tc.name, tc.args)
+                sub_messages.append(sub_result.to_message(tc.id))
+                self.bus.publish(Event(type="sub_tool_call_completed", name=tc.name, ...))
+
+        # 超限
+        return ToolResult(
+            tool_name=self.definition.tool_id,
+            success=False,
+            error=f"sub iteration limit {self.max_sub_iterations} reached",
+            llm_context="[sub-agent failed: iteration limit]",
+        )
+
+    def _build_system_prompt(self) -> str:
+        tool_list = "\n".join(f"- {t}" for t in self.definition.sub_tools)
+        return SYSTEM_PROMPT_TEMPLATE.format(
+            name=self.definition.name,
+            user_intent=self.definition.system_prompt,
+            tool_list=tool_list,
+            max_sub_iterations=self.max_sub_iterations,
+        )
 ```
 
-内部逻辑保持不变(validate → 顺序执行 wrapper),只是:
-- 接收 CompositeToolDefinition 而不是 list[str]
-- 操作传入的 state 而不是新建
-- 返回 ToolResult 而不是 run_id
-- active_pipeline / current_step 仅在 composite 内部使用,顶层 ChatSession 不感知
+**关键不变量**:
+- composite tool 内部禁止再调 composite tool(防止递归爆炸),只允许 atomic tool
+- sub_messages 不与顶层 session.messages 共享
+- GlobalState 在 sub-execution 中仍然可读可写(子 agent 之间通过 dynamic_storage 通信)
 
 ### 4.6 JsonFileRepository
 
@@ -416,15 +505,19 @@ class JsonFileRepository(IStateRepository, IChatRepository, ICompositeRepository
 | `DELETE` | `/chat/conversations/{id}` | 删除对话 | — | `{ok}` |
 | `GET` | `/tools/catalog` | 列出所有可用工具(含 atomic + 用户 composite) | `?user_id=` | `{tools: [ToolSpec]}` |
 | `GET` | `/tools/{tool_id}` | 工具详情 | — | `{spec}` |
-| `POST` | `/canvas/composite` | 保存 composite tool(画布提交) | `{tool_id, name, description, sub_pipeline, is_public?}` | `{tool}` |
+| `POST` | `/canvas/composite` | 保存 composite tool(画布提交) | `{tool_id, name, system_prompt, sub_tools, is_public?}` | `{tool, augmented_system_prompt}` |
+| `POST` | `/canvas/preview-prompt` | 预览后端增强后的完整 system_prompt | `{name, system_prompt, sub_tools}` | `{augmented_system_prompt}` |
 | `DELETE` | `/canvas/composite/{tool_id}` | 删除 composite tool | — | `{ok}` |
-| `POST` | `/canvas/validate-composite` | 画布拖拽时实时校验 | `{sub_pipeline}` | `{valid, steps}` |
+| `POST` | `/canvas/validate-composite` | 画布拖拽时实时校验(检查 sub_tools 依赖) | `{sub_tools}` | `{valid, steps}` |
 | `GET` | `/health` | 健康检查 | — | `{ok}` |
 
 **SSE 事件类型**(chat 流):
 - `message_received` — 用户消息已收到
-- `tool_call_started` — LLM 决定调用工具
-- `tool_call_completed` — 工具执行完成
+- `tool_call_started` — LLM 决定调用工具(composite 时同时附 `is_composite: true`)
+- `sub_llm_iteration` — composite 内部 Sub-LLM 循环的迭代次数
+- `sub_tool_call` — Sub-LLM 调用了子工具
+- `sub_tool_call_completed` — 子工具完成
+- `tool_call_completed` — 顶层工具(composite 或 atomic)执行完成
 - `tool_call_skipped` — 超过 max_tool_calls,跳过
 - `turn_continued` — 一轮 tool_call 结束,LLM 继续生成
 - `message_completed` — LLM 给出最终文本
@@ -450,21 +543,29 @@ class JsonFileRepository(IStateRepository, IChatRepository, ICompositeRepository
 | t=3.8s | SSE: message_completed content="我帮你找到..." | session 持久化 |
 | t=3.9s | ChatInput 重新可输入 | — |
 
-### 7.2 场景:用户保存自定义工具"my_research_finder"
+### 7.2 场景:用户保存自定义工具"ml_paper_summarizer"
 
 | 时刻 | 浏览器侧 | 后端侧 |
 | --- | --- | --- |
 | t=0 | Canvas tab,拖 arxiv_search → writing_polisher | — |
 | t=1s | usePipelineValidation(TS) 实时校验 → 绿线 | — |
-| t=2s | 点 "Save as my tool",填 tool_id="my_research_finder" | — |
-| t=2.1s | POST /canvas/validate-composite | CompositeToolExecutor.validate |
-| t=2.2s | POST /canvas/composite | 持久化到 JsonFileRepository |
-| t=2.3s | 切回 Chat,问"用 my_research_finder 找..." | — |
-| t=2.4s | — | list_my_tools 返回 8 个(含新 composite) |
-| t=2.5s | LLM 看到 my_research_finder,决定调用 | — |
-| t=2.6s | SSE: tool_call_started name=my_research_finder | CompositeToolExecutor.run |
-| t=2.7s | — | 顺序执行 arxiv_search → writing_polisher |
-| t=3.5s | SSE: tool_call_completed summary="..." | 返回 ToolResult |
+| t=2s | 点 "Save as my tool",填 tool_id="ml_paper_summarizer"、name、description、system_prompt | — |
+| t=2.05s | POST /canvas/preview-prompt | 后端拼好 augmented_system_prompt 返回 |
+| t=2.1s | Modal 显示完整 prompt,用户确认 | — |
+| t=2.2s | POST /canvas/composite | 校验 sub_tools 依赖,持久化到 JsonFileRepository |
+| t=2.3s | 切回 Chat,问"用 ml_paper_summarizer 找最新 ML 论文" | — |
+| t=2.4s | — | list_my_tools 返回 N+1 个(含新 composite) |
+| t=2.5s | LLM 看到 ml_paper_summarizer,决定调用 | — |
+| t=2.6s | SSE: tool_call_started name=ml_paper_summarizer is_composite=true | CompositeAgent.run |
+| t=2.7s | SSE: sub_llm_iteration iter=0 | Sub-LLM 启动,构造隔离 context |
+| t=2.8s | SSE: sub_tool_call name=arxiv_search | Sub-LLM 调子工具 |
+| t=3.0s | SSE: sub_tool_call_completed | arxiv_search 跑完 |
+| t=3.1s | SSE: sub_llm_iteration iter=1 | Sub-LLM 拿到结果,继续 |
+| t=3.2s | SSE: sub_tool_call name=writing_polisher | Sub-LLM 调润色 |
+| t=3.6s | SSE: sub_tool_call_completed | writing_polisher 跑完 |
+| t=3.7s | — | Sub-LLM 返回 final_answer |
+| t=3.8s | SSE: tool_call_completed summary="..." | 顶层 ToolResult 注入 messages |
+| t=3.9s | — | 顶层 LLM 拿到结果,继续生成最终回复 |
 
 ---
 
@@ -581,7 +682,7 @@ data/
 |--------|---------|---------|
 | LLM API 失败 | ToolRuntime try/except | 流中断,显示 "LLM 调用失败, 请重试" |
 | Tool 执行异常 | ToolExecutor try/except | tool_call_completed 带 error,LLM 收到错误上下文,可能自我恢复 |
-| Composite 内部异常 | CompositeToolExecutor try/except | 整个 composite 标 failed,工具返回错误摘要给 LLM |
+| Composite 内部异常 | CompositeAgent try/except | 整个 composite 标 failed,工具返回错误摘要给 LLM |
 | JsonFile 写入失败 | repository try/except | 5xx,前端提示"保存失败" |
 | max_tool_calls 超限 | ToolRuntime 强制结束 | 警告事件,前端显示"工具调用次数过多,对话已强制结束" |
 | 未知 tool_id | ToolExecutor 抛 ToolNotFound | tool_call_completed 带 error,LLM 收到错误 |
@@ -604,7 +705,10 @@ data/
 | 真实插件示例 | pubmed_scout | knowledge_retriever (arxiv 后端) | 用户要求"通用,不限学科" |
 | 持续化 | InMemoryRepository | JsonFileRepository | 用户要求"先 JSON 后续换 SQLite" |
 | CentralRouter | 保留(预留扩展) | 删除 | 实际代码 13 行 stub,被 LLM 循环取代 |
-| PipelineOrchestrator | 保留为主调度 | 重命名为 CompositeToolExecutor | 让 LLM 接管主调度 |
+| PipelineOrchestrator | 保留为主调度 | 删除,功能由 `CompositeAgent` (LLM 驱动) 取代 | 顺序执行器不再需要,改用 LLM 自由编排 |
+| **Composite tool 本质** | (无此概念,Phase 1 是 agent 顺序 pipeline) | **LLM 驱动的嵌套 agent** | 用户要求"用户创建的 composite tool 是 LLM 驱动的子编排" |
+| **Sub-LLM 上下文** | (无此概念) | 隔离(只看 system_prompt + args + 自己的 scratchpad) | 干净、token 可控 |
+| **System prompt 来源** | (无此概念) | 用户填 + 后端增强 | 用户提供意图,后端拼入工具列表 / 行为规范 |
 
 ### 11.2 与 PRD §3.2 / §4 的关系
 - §3.2 中列出的 intent_parser / arxiv_scout / pubmed_scout / jargon_polisher / csc_matcher → 全部移除,通用 agent 替代
@@ -632,7 +736,7 @@ data/
 - Chat 端到端:用户发消息 → LLM 调 arxiv_search → LLM 给最终回复(SSE 流)
 - 用户在画布保存 composite tool → 出现在 `/tools/catalog` → LLM 可调用
 - 真实 arxiv API 调用成功(用 `python-arxiv` 或裸 HTTP)
-- pytest 通过:Phase 1 测试 + 新增 chat / tool_runtime / composite_executor 测试(覆盖率 ≥ 70% on `core/`)
+- pytest 通过:Phase 1 测试 + 新增 chat / tool_runtime / composite_agent 测试(覆盖率 ≥ 70% on `core/`)
 
 ### 12.2 前端
 - 启动后默认进入 Chat tab
@@ -642,7 +746,7 @@ data/
 
 ### 12.3 架构
 - CentralRouter 文件已删除
-- PipelineOrchestrator 重命名为 CompositeToolExecutor
+- PipelineOrchestrator 文件已删除(由 LLM-driven CompositeAgent 取代)
 - LLM 调用通过 OpenAI 兼容协议指向 MiniMax-m3
 - 数据持久化到 `data/{user_id}/` JSON 文件
 
@@ -658,7 +762,7 @@ data/
 ### 13.1 后端(pytest)
 - `test_chat.py` — ChatSession 持久化、Message 序列化
 - `test_tool_runtime.py` — LLM 循环、tool_call 处理、max_tool_calls 超限
-- `test_composite_executor.py` — 子图顺序执行(原 test_pipeline_e2e.py 改名)
+- `test_composite_agent.py` — LLM 驱动的嵌套 agent 行为(mock LLM)
 - `test_composite_repo.py` — 画布保存/读取
 - `test_knowledge_retriever.py` — arxiv API mock 测试
 - `test_writing_polisher.py` / `test_email_drafter.py` — LLM mock 测试
@@ -704,27 +808,38 @@ data/
 |------|------|
 | ChatSession | 用户的单次对话(含 messages + state) |
 | ToolRuntime | LLM + tool 调用的核心循环(取代 Phase 1 的 PipelineOrchestrator) |
-| ToolExecutor | 单个 tool 调用的执行分发(atomic → wrapper, composite → executor) |
-| CompositeTool | 用户在画布上组合的自定义工具 |
-| CompositeToolExecutor | composite tool 的顺序执行器(原 PipelineOrchestrator 改名) |
+| ToolExecutor | 单个 tool 调用的执行分发(atomic → wrapper, composite → CompositeAgent) |
+| CompositeTool | 用户在画布上组合的自定义工具(LLM 驱动的嵌套 agent) |
+| CompositeAgent | 嵌套的 LLM 循环,执行 composite tool 内部的 sub-orchestration |
+| Sub-LLM / Sub-Messages | CompositeAgent 内部的 LLM 实例和隔离的上下文 |
 | list_my_tools | LLM 调用的动态工具发现接口 |
 | ToolSpec | LLM 看到的工具 schema(JSON Schema 格式) |
+| Augmented System Prompt | 用户填写的 system_prompt + 后端拼接的工具列表 / 行为规范 |
 
 ## 附录 B:迁移影响清单
 
 | Phase 1 文件 | Phase 2 状态 | 备注 |
 |-------------|-------------|------|
 | `core/router.py` | 删除 | — |
-| `orchestrator.py` | 重命名为 `core/composite_executor.py` | 函数签名改 |
-| `core/wrapper.py` | 保留 + 加 `execute_one(state, name, args)` 便捷方法 | 适配 composite 内调用 |
-| `core/state.py` | 保留 + 加注释说明 active_pipeline/current_step 是 composite-internal | — |
+| `orchestrator.py` | **整体删除**(原 PipelineOrchestrator 责任并入 CompositeAgent) | — |
+| `core/wrapper.py` | 保留 + 加 `execute_one(state, name, args)` 便捷方法 | 供 CompositeAgent 内调用 |
+| `core/state.py` | 保留(不再被顶层 chat 使用 active_pipeline/current_step) | — |
 | `core/registry.py` | 加 `list_my_tools(user_id)` 动态方法 | — |
-| `core/events.py` | 加新事件类型 | — |
+| `core/events.py` | 加新事件类型:sub_llm_iteration, sub_tool_call, sub_tool_call_completed | — |
 | `core/repository.py` | 加 `JsonFileRepository` 实现 + 拆出 `IChatRepository` / `ICompositeRepository` | 接口分离 |
+| `core/chat.py` | 🆕 新建:Message / ChatSession 数据模型 | — |
+| `core/composite.py` | 🆕 新建:CompositeToolDefinition + system_prompt 增强模板 | — |
+| `core/composite_agent.py` | 🆕 新建:LLM 驱动的 CompositeAgent(取代 PipelineOrchestrator) | — |
+| `core/tool_runtime.py` | 🆕 新建:顶层 LLM 循环 | — |
+| `core/tool_executor.py` | 🆕 新建:atomic / composite 调度 | — |
 | `api/agents.py` | 标记 deprecated,内部转 /tools/catalog | — |
-| `api/pipelines.py` | 保留作为 composite tool 内部调用入口(内部 API) | — |
-| `frontend/App.tsx` | 改为 Tab 容器 | — |
-| `frontend/canvas/*` | 保留 + 顶部按钮改 "Save as my tool" | — |
-| `frontend/workspace/*` | 改为 tool 结果展示 | — |
+| `api/pipelines.py` | 删除(原 PipelineOrchestrator 接口) | — |
+| `api/chat.py` | 🆕 新建 | — |
+| `api/tools.py` | 🆕 新建 | — |
+| `api/canvas.py` | 🆕 新建 | — |
+| `frontend/App.tsx` | 改为 Tab 容器(Chat / Canvas) | — |
+| `frontend/chat/*` | 🆕 新建:ChatView / MessageList / MessageBubble / ChatInput / ToolCallIndicator | — |
+| `frontend/canvas/*` | 保留 + 顶部按钮改 "Save as my tool" + 加 system_prompt 填写区 | — |
+| `frontend/workspace/*` | 改为 tool 结果展示(支持显示 sub-LLM 内部步骤) | — |
 
-所有 Phase 1 测试需要更新 import path(`PipelineOrchestrator` → `CompositeToolExecutor`)。
+Phase 1 测试需要删除 `test_pipeline_e2e.py`(PipelineOrchestrator 已删),新增 `test_chat.py` / `test_tool_runtime.py` / `test_composite_agent.py` / `test_composite_repo.py` / `test_knowledge_retriever.py` / `test_writing_polisher.py` / `test_email_drafter.py`。

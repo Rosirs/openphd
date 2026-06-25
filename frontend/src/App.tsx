@@ -1,56 +1,30 @@
-import { useEffect, useState } from 'react';
-import { AgentShelf } from './shelf/AgentShelf';
-import { FlowCanvas } from './canvas/FlowCanvas';
-import { WorkspaceRoot } from './workspace/WorkspaceRoot';
-import { apiClient } from './api/client';
-import type { AgentContract, SseEvent } from './api/types';
+import { useState } from 'react';
+import { ChatView } from './chat/ChatView';
+import { ToolBuilderCanvas } from './canvas/ToolBuilderCanvas';
+import './App.css';
+
+type Tab = 'chat' | 'canvas';
 
 export default function App() {
-  const [contracts, setContracts] = useState<AgentContract[]>([]);
-  const [events, setEvents] = useState<SseEvent[]>([]);
-  const [finalData, setFinalData] = useState<Record<string, unknown>>({});
-  const [activatedAgents, setActivatedAgents] = useState<string[]>([]);
-
-  useEffect(() => {
-    apiClient.catalog().then(setContracts).catch(console.error);
-  }, []);
-
-  const onRun = async (pipeline: string[]) => {
-    setEvents([]);
-    setFinalData({});
-    setActivatedAgents(pipeline);
-    try {
-      const result = await apiClient.runPipeline({
-        user_id: 'demo-user',
-        active_pipeline: pipeline,
-        dynamic_storage: { echo_input: 'hello from frontend' },
-      });
-      setFinalData({ run_id: result.run_id, status: result.status });
-      apiClient.subscribeEvents(result.run_id, (e) => {
-        setEvents(prev => [...prev, e]);
-        if (e.status === 'end' && e.output) {
-          setFinalData(e.output);
-        }
-      });
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  if (contracts.length === 0) {
-    return <div style={{ padding: 24 }}>Loading agent catalog…</div>;
-  }
+  const [tab, setTab] = useState<Tab>('chat');
+  const userId = 'default-user';
 
   return (
-    <div style={{ display: 'flex', height: '100vh', color: '#fff', background: '#0a0a0a' }}>
-      <AgentShelf contracts={contracts} onDragStart={() => {}} />
-      <FlowCanvas contracts={contracts} onRun={onRun} />
-      <WorkspaceRoot
-        activatedAgents={activatedAgents}
-        contracts={contracts}
-        events={events}
-        finalData={finalData}
-      />
+    <div className="app">
+      <header className="tabs">
+        <button
+          className={tab === 'chat' ? 'active' : ''}
+          onClick={() => setTab('chat')}
+        >Chat</button>
+        <button
+          className={tab === 'canvas' ? 'active' : ''}
+          onClick={() => setTab('canvas')}
+        >Canvas</button>
+      </header>
+      <main>
+        {tab === 'chat' && <ChatView userId={userId} />}
+        {tab === 'canvas' && <ToolBuilderCanvas userId={userId} />}
+      </main>
     </div>
   );
 }

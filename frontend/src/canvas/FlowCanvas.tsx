@@ -33,6 +33,10 @@ export function FlowCanvas({ contracts, onRun }: Props) {
     if (id) setPipeline(p => [...p, id]);
   }, []);
 
+  const handleRemove = useCallback((idx: number) => {
+    setPipeline(p => p.filter((_, i) => i !== idx));
+  }, []);
+
   const nodes: Node[] = useMemo(
     () =>
       pipeline.map((id, idx) => {
@@ -45,10 +49,13 @@ export function FlowCanvas({ contracts, onRun }: Props) {
           data: {
             ...c,
             hasMissingDeps: step ? !step.ok : false,
+            pipelineValid: validation.valid,
+            missingFields: step ? [...step.missing] : [],
+            onRemove: () => handleRemove(idx),
           },
         };
       }),
-    [pipeline, contractMap, validation],
+    [pipeline, contractMap, validation, handleRemove],
   );
 
   const edges: Edge[] = useMemo(
@@ -58,12 +65,7 @@ export function FlowCanvas({ contracts, onRun }: Props) {
         source: `${idx}-${pipeline[idx]}`,
         target: `${idx + 1}-${pipeline[idx + 1]}`,
         style: {
-          stroke:
-            validation.steps[idx + 1]?.ok === false
-              ? '#e53935'
-              : validation.steps.every(s => s.ok)
-                ? '#43a047'
-                : '#888',
+          stroke: validation.valid ? '#43a047' : '#e53935',
           strokeWidth: 2,
         },
       })),

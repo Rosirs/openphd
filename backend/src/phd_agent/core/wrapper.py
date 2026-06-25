@@ -66,5 +66,7 @@ class AgentWrapper:
 
     async def execute(self, state: GlobalState, agent_id: str, run_id: str,
                       bus: EventBus) -> None:
-        """Legacy execute (kept for any remaining callers; no current_step increment)."""
+        """Legacy execute with current_step increment (composite-internal use)."""
         await self.execute_one(state, agent_id, args={}, run_id=run_id)
+        if state.current_step < len(state.active_pipeline):
+            state.current_step += 1

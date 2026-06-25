@@ -4,7 +4,8 @@ from phd_agent.core.state import GlobalState
 
 class CentralRouter:
     def __init__(self, registry) -> None:
-        self._registry = registry  # held for future validation hooks
+        # Reserved for future per-pipeline validation hooks; not currently consulted.
+        self._registry = registry
 
     def dispatch(self, state: GlobalState) -> str | None:
         if state.current_step >= len(state.active_pipeline):

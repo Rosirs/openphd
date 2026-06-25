@@ -8,6 +8,9 @@ from phd_agent.core.state import GlobalState
 class AgentWrapper:
     def __init__(self, registry, bus, llm) -> None:
         self._registry = registry
+        # bus and llm are reserved for future use:
+        # - bus: per-call bus override for testability (currently passed in execute())
+        # - llm: per-agent LLM invocation in agent.run
         self._bus = bus
         self._llm = llm
 

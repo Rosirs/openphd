@@ -16,6 +16,11 @@ class AgentContract(BaseModel):
     output_fields: set[str]
     token_budget: int = 4000
     isolation: Isolation = "in_process"
+    # JSON Schema for tool-call parameters (used by LLM tool calling)
+    parameters: dict = {
+        "type": "object",
+        "properties": {},
+    }
 
 class BaseAgent(ABC):
     """Abstract base class all plugins must subclass."""

@@ -1,0 +1,60 @@
+{
+  "agents": [
+    {
+      "agent_id": "intent_parser",
+      "name": "Intent Parser",
+      "description": "Identifies user intent",
+      "category": "academic",
+      "required_fields": ["raw_user_input"],
+      "output_fields": ["intent", "is_ambiguous"],
+      "token_budget": 500,
+      "isolation": "in_process"
+    },
+    {
+      "agent_id": "mock_echo",
+      "name": "Mock Echo",
+      "description": "Echoes dynamic_storage.echo_input",
+      "category": "mock",
+      "required_fields": ["dynamic_storage.echo_input"],
+      "output_fields": ["dynamic_storage.echo_output"],
+      "token_budget": 0,
+      "isolation": "in_process"
+    },
+    {
+      "agent_id": "mock_logger",
+      "name": "Mock Logger",
+      "description": "Appends echo_output to run_log",
+      "category": "mock",
+      "required_fields": ["dynamic_storage.echo_output"],
+      "output_fields": ["dynamic_storage.run_log"],
+      "token_budget": 0,
+      "isolation": "in_process"
+    },
+    {
+      "agent_id": "jargon_polisher",
+      "name": "Jargon Polisher",
+      "description": "Rewrites email_draft in academic style",
+      "category": "writing",
+      "required_fields": ["email_draft"],
+      "output_fields": ["email_draft"],
+      "token_budget": 2000,
+      "isolation": "in_process"
+    },
+    {
+      "agent_id": "csc_matcher",
+      "name": "CSC Matcher",
+      "description": "Evaluates CSC scholarship fit",
+      "category": "admin",
+      "required_fields": ["user_background"],
+      "output_fields": ["dynamic_storage.csc_report"],
+      "token_budget": 1000,
+      "isolation": "in_process"
+    }
+  ],
+  "pipelines": {
+    "happy_path": ["mock_echo", "mock_logger"],
+    "missing_field": ["mock_logger"],
+    "chain_ok": ["intent_parser", "mock_echo", "mock_logger"],
+    "chain_broken": ["mock_logger", "intent_parser"]
+  }
+}

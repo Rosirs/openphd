@@ -29,7 +29,7 @@ def test_validate_happy_path(client):
     assert r.status_code == 200
     assert r.json()["valid"] is True
 
-def test_validate_invalid_pipeline_returns_422(client):
+def test_validate_invalid_pipeline_returns_200_with_valid_false(client):
     r = client.post("/api/pipelines/validate", json={
         "active_pipeline": ["mock_logger"],
         "user_id": "u1",

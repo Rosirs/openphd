@@ -1,0 +1,1 @@
+from phd_agent.plugins.knowledge_retriever.agent import KnowledgeRetrieverAgent, CONTRACT

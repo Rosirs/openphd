@@ -2,15 +2,26 @@ import { useEffect, useState } from 'react';
 import { MessageList } from './MessageList';
 import { ChatInput } from './ChatInput';
 import { ToolCallIndicator } from './ToolCallIndicator';
-import { api } from '../api/client';
-import type { Message } from '../api/types';
+import { SettingsModal } from '../onboard/SettingsModal';
+import { api, onboardApi } from '../api/client';
+import type { Message, OnboardStatus, SaveProfileBody, TestResponse } from '../api/types';
 
-export function ChatView({ userId }: { userId: string }) {
+export function ChatView({
+  userId, status: initialStatus, onProfileChange,
+}: {
+  userId: string;
+  status: OnboardStatus;
+  onProfileChange: () => Promise<void>;
+}) {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeTools, setActiveTools] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [status, setStatus] = useState<OnboardStatus>(initialStatus);
+
+  useEffect(() => { setStatus(initialStatus); }, [initialStatus]);
 
   useEffect(() => {
     api.createConversation(userId, 'New chat')
@@ -32,9 +43,7 @@ export function ChatView({ userId }: { userId: string }) {
       for await (const ev of stream) {
         if (ev.type === 'tool_call_started' && ev.name) {
           setActiveTools((a) => [...a, ev.name!]);
-        } else if (
-          (ev.type === 'tool_call_completed' || ev.type === 'tool_call_skipped') && ev.name
-        ) {
+        } else if ((ev.type === 'tool_call_completed' || ev.type === 'tool_call_skipped') && ev.name) {
           setActiveTools((a) => a.filter((n) => n !== ev.name));
         } else if (ev.type === 'message_completed' && ev.content) {
           assistant = ev.content;
@@ -47,19 +56,41 @@ export function ChatView({ userId }: { userId: string }) {
       setError(e instanceof Error ? e.message : String(e));
     }
     if (assistant) {
-      setMessages((m) => [...m, {
-        role: 'assistant', content: assistant, timestamp: new Date().toISOString(),
-      }]);
+      setMessages((m) => [...m, { role: 'assistant', content: assistant, timestamp: new Date().toISOString() }]);
     }
     setBusy(false);
   };
 
+  const refreshStatus = async () => {
+    const s = await onboardApi.getStatus();
+    setStatus(s);
+    await onProfileChange();
+  };
+
+  const providerLabel = status.profile
+    ? `${status.profile.llm_provider} · ${status.profile.model_name}`
+    : 'mock LLM';
+
   return (
     <div className="chat-view">
+      <header className="chat-header">
+        <span className="logo">PhD-Agent</span>
+        <span className="provider-tag">{providerLabel}</span>
+        <button data-testid="settings-btn" onClick={() => setShowSettings(true)} className="icon-btn">⚙</button>
+      </header>
       <MessageList messages={messages} />
       <ToolCallIndicator active={activeTools} />
       {error && <div className="chat-error">{error}</div>}
       <ChatInput onSend={send} disabled={busy || !conversationId} />
+      {showSettings && (
+        <SettingsModal
+          status={status}
+          onClose={() => setShowSettings(false)}
+          onSave={refreshStatus}
+          onTest={async (data: SaveProfileBody) =>
+            (await onboardApi.test(data)) as TestResponse}
+        />
+      )}
     </div>
   );
 }

@@ -244,3 +244,75 @@ main {
   color: #666;
   cursor: not-allowed;
 }
+
+/* Chat header */
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #111;
+  border-bottom: 1px solid #222;
+}
+.chat-header .logo { font-weight: 600; }
+.chat-header .provider-tag {
+  flex: 1;
+  font-size: 0.85em;
+  color: #8cf;
+  background: #1a2a4a;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.icon-btn {
+  background: transparent;
+  border: 1px solid #333;
+  color: #fff;
+  font-size: 1.1em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.icon-btn:hover { background: #1a1a1a; }
+
+/* Onboard / Settings modal */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.modal {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 24px;
+  width: 90%; max-width: 500px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.modal h2 { margin: 0; }
+.modal .hint { color: #888; font-size: 0.85em; margin: 0; }
+.modal .actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.modal button {
+  padding: 8px 16px; background: #2a4a7a; color: #fff;
+  border: 1px solid #4a7aba; border-radius: 4px; cursor: pointer;
+}
+.modal button:disabled { background: #2a2a2a; color: #666; cursor: not-allowed; }
+
+/* LLM Config Form */
+.llm-config-form {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.llm-config-form label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 0.85em;
+}
+.llm-config-form input, .llm-config-form select {
+  padding: 8px;
+  background: #0a0a0a; color: #fff;
+  border: 1px solid #333; border-radius: 4px;
+  font-family: inherit;
+}
+.test-ok { color: #8f8; font-size: 0.85em; padding: 6px; background: #143614; border-radius: 4px; }
+.test-fail { color: #f88; font-size: 0.85em; padding: 6px; background: #4a1414; border-radius: 4px; }

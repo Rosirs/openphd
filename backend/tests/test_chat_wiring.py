@@ -78,7 +78,8 @@ async def test_composite_factory_uses_user_llm_not_hardcoded_mock():
     runtime = deps.get_runtime()
 
     definition = CompositeToolDefinition(
-        tool_id="x", name="x", description="x", system_prompt="x", sub_tools=[]
+        tool_id="x", name="x", description="x", system_prompt="x", sub_tools=[],
+        owner_user_id="x",
     )
     agent = await runtime._executor._composite_factory(definition)
     assert isinstance(agent, CompositeAgent)

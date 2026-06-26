@@ -88,3 +88,35 @@ export const api = {
         return { stream: stream(), close: () => ctrl.abort() };
     },
 };
+export const onboardApi = {
+    async getStatus() {
+        const r = await fetch(`${BASE}/onboard/status`);
+        if (!r.ok)
+            throw new Error(`status failed: ${r.status}`);
+        return r.json();
+    },
+    async save(body) {
+        const r = await fetch(`${BASE}/onboard/save`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!r.ok)
+            throw new Error(`save failed: ${r.status}`);
+        return r.json();
+    },
+    async test(body) {
+        const r = await fetch(`${BASE}/onboard/test`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!r.ok)
+            throw new Error(`test failed: ${r.status}`);
+        return r.json();
+    },
+    async skip() {
+        const r = await fetch(`${BASE}/onboard/skip`, { method: 'POST' });
+        if (!r.ok)
+            throw new Error(`skip failed: ${r.status}`);
+        return r.json();
+    },
+};

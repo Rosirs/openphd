@@ -77,3 +77,39 @@ export interface ValidationResult {
   failed_at: number | null;
   steps: StepValidation[];
 }
+
+// Onboard (LLM configuration wizard)
+export interface ProviderInfo {
+  key: string;
+  label: string;
+  supported: boolean;
+}
+
+export interface ProfileInfo {
+  llm_provider: string;
+  base_url: string;
+  model_name: string;
+  api_key_masked: string;
+  onboarded: boolean;
+}
+
+export interface OnboardStatus {
+  configured: boolean;
+  onboarded: boolean;
+  profile: ProfileInfo | null;
+  providers: ProviderInfo[];
+}
+
+export interface SaveProfileBody {
+  llm_provider: string;
+  base_url?: string;
+  api_key?: string;
+  model_name?: string;
+}
+
+export interface TestResponse {
+  ok: boolean;
+  message: string;
+  latency_ms: number;
+  model?: string;
+}

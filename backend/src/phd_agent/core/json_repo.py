@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from phd_agent.core.chat import ChatSession
 from phd_agent.core.composite import CompositeToolDefinition
+from phd_agent.core.profile import UserProfile
 
 
 class JsonFileRepository:
@@ -68,5 +69,21 @@ class JsonFileRepository:
 
     async def delete_composite_tool(self, user_id: str, tool_id: str) -> None:
         p = self._tool_path(user_id, tool_id)
+        if p.exists():
+            p.unlink()
+
+    async def save_profile(self, profile: UserProfile) -> None:
+        p = self.base / "profile.json"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(profile.model_dump_json(indent=2))
+
+    async def load_profile(self) -> UserProfile | None:
+        p = self.base / "profile.json"
+        if not p.exists():
+            return None
+        return UserProfile.model_validate_json(p.read_text())
+
+    async def delete_profile(self) -> None:
+        p = self.base / "profile.json"
         if p.exists():
             p.unlink()

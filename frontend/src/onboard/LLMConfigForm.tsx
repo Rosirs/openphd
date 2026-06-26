@@ -6,6 +6,7 @@ const PRESETS: Record<string, { base_url: string; default_model: string }> = {
   openai: { base_url: 'https://api.openai.com/v1', default_model: 'gpt-4o-mini' },
   deepseek: { base_url: 'https://api.deepseek.com/v1', default_model: 'deepseek-chat' },
   moonshot: { base_url: 'https://api.moonshot.cn/v1', default_model: 'moonshot-v1-8k' },
+  MiniMax: { base_url: 'https://api.MiniMax.chat/v1', default_model: 'MiniMax-M3' },
   custom: { base_url: '', default_model: '' },
   anthropic: { base_url: 'https://api.anthropic.com', default_model: 'claude-3-5-sonnet-20241022' },
 };

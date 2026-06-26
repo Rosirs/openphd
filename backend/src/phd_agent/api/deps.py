@@ -59,16 +59,20 @@ def get_runtime() -> ToolRuntime:
         return _runtime
     bus = EventBus()
     registry = AgentRegistry(plugins_dir=_plugins_dir())
-    wrapper = AgentWrapper(registry, bus, llm=None)
     repo = get_repo()
+    wrapper = AgentWrapper(registry, bus, llm=None)
 
-    def composite_factory(definition):
-        from phd_agent.llm.mock import MockLLMClient
-        return CompositeAgent(definition, MockLLMClient(), wrapper, bus)
+    async def composite_factory(definition):
+        llm, _ = await get_llm_async()
+        return CompositeAgent(definition, llm, wrapper, bus)
 
     _runtime = ToolRuntime(
-        registry=registry, llm=MockLLMClient(), bus=bus, chat_repo=repo,
-        wrapper=wrapper, composite_agent_factory=composite_factory,
-        model="mock",  # overridden per-turn via get_llm_async
+        registry=registry,
+        llm=None,                          # factory is the only source
+        bus=bus,
+        chat_repo=repo,
+        wrapper=wrapper,
+        composite_agent_factory=composite_factory,
+        llm_factory=get_llm_async,         # per-turn resolution
     )
     return _runtime

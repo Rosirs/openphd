@@ -21,15 +21,23 @@ class ToolRuntime:
     def __init__(self, registry: AgentRegistry, llm, bus: EventBus,
                  chat_repo: JsonFileRepository, wrapper: AgentWrapper | None = None,
                  max_tool_calls: int = 10, model: str = "MiniMax-m3",
-                 composite_agent_factory=None):
+                 composite_agent_factory=None,
+                 llm_factory=None):
         self.registry = registry
-        self.llm = llm
+        self.llm = llm  # fallback default; overridden by llm_factory per turn
         self.bus = bus
         self.chat_repo = chat_repo
         self.max_tool_calls = max_tool_calls
         self.model = model
         self._wrapper = wrapper or AgentWrapper(registry, bus, llm)
         self._executor = ToolExecutor(registry, self._wrapper, bus, composite_agent_factory)
+        self._llm_factory = llm_factory  # async () -> (client, model)
+
+    async def _get_llm(self):
+        """Resolve LLM client per turn. Uses ProfileCache if available."""
+        if self._llm_factory is None:
+            return self.llm, self.model
+        return await self._llm_factory()
 
     async def run_turn(self, session: ChatSession, user_message: str,
                        run_id: str | None = None) -> AsyncIterator[dict]:
@@ -43,10 +51,11 @@ class ToolRuntime:
         tool_call_count = 0
         while True:
             tools = await self.registry.list_my_tools(session.user_id)
-            response = await self.llm.chat(
+            llm, model = await self._get_llm()
+            response = await llm.chat(
                 messages=[m.to_llm_dict() for m in self._build_messages(session)],
                 tools=tools,
-                model=self.model,
+                model=model,
             )
             if not response.tool_calls:
                 content = response.content or ""

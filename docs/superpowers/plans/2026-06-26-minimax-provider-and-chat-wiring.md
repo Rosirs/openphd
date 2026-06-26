@@ -207,16 +207,9 @@ async def test_composite_factory_uses_user_llm_not_hardcoded_mock():
     deps.invalidate_profile_cache()
     runtime = deps.get_runtime()
 
-    # Invoke the composite factory exactly the way ToolExecutor does.
     definition = CompositeToolDefinition(
         tool_id="x", name="x", description="x", system_prompt="x", sub_tools=[]
     )
-    deps._repo = None  # force factory to re-resolve through deps.get_repo
-    deps._repo = JsonFileRepository.__new__(JsonFileRepository)  # placeholder, real path below
-    # Use the repo that get_runtime already wired:
-    deps._repo = runtime.chat_repo
-    deps.invalidate_profile_cache()
-
     agent = await runtime._executor._composite_factory(definition)
     assert isinstance(agent, CompositeAgent)
     assert isinstance(agent.llm, OpenAICompatClient), (
@@ -262,12 +255,12 @@ def get_runtime() -> ToolRuntime:
     bus = EventBus()
     registry = AgentRegistry(plugins_dir=_plugins_dir())
     repo = get_repo()
+    wrapper = AgentWrapper(registry, bus, llm=None)
 
     async def composite_factory(definition):
         llm, _ = await get_llm_async()
         return CompositeAgent(definition, llm, wrapper, bus)
 
-    wrapper = AgentWrapper(registry, bus, llm=None)
     _runtime = ToolRuntime(
         registry=registry,
         llm=None,                          # factory is the only source

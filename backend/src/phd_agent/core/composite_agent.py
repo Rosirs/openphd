@@ -12,11 +12,13 @@ MAX_SUB_ITERATIONS = 5
 
 class CompositeAgent:
     def __init__(self, definition: CompositeToolDefinition, llm, wrapper: AgentWrapper,
-                 bus: EventBus, max_sub_iterations: int = MAX_SUB_ITERATIONS):
+                 bus: EventBus, model: str = "MiniMax-m3",
+                 max_sub_iterations: int = MAX_SUB_ITERATIONS):
         self.definition = definition
         self.llm = llm
         self.wrapper = wrapper
         self.bus = bus
+        self.model = model
         self.max_sub_iterations = max_sub_iterations
 
     async def run(self, *, args: dict, state: GlobalState,
@@ -35,7 +37,7 @@ class CompositeAgent:
             response = await self.llm.chat(
                 messages=[m.to_llm_dict() for m in sub_messages],
                 tools=sub_tools,
-                model="MiniMax-m3",
+                model=self.model,
             )
             if not response.tool_calls:
                 content = response.content or ""

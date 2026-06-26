@@ -63,8 +63,8 @@ def get_runtime() -> ToolRuntime:
     wrapper = AgentWrapper(registry, bus, llm=None)
 
     async def composite_factory(definition):
-        llm, _ = await get_llm_async()
-        return CompositeAgent(definition, llm, wrapper, bus)
+        llm, model = await get_llm_async()
+        return CompositeAgent(definition, llm, wrapper, bus, model=model)
 
     _runtime = ToolRuntime(
         registry=registry,

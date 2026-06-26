@@ -19,6 +19,12 @@ PROVIDER_PRESETS: dict[str, dict] = {
         "default_model": "moonshot-v1-8k",
         "supported": True,
     },
+    "MiniMax": {
+        "label": "MiniMax",
+        "base_url": "https://api.MiniMax.chat/v1",
+        "default_model": "MiniMax-M3",
+        "supported": True,
+    },
     "custom": {
         "label": "Custom (OpenAI-compatible)",
         "base_url": "",

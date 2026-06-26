@@ -30,3 +30,10 @@ def test_all_presets_have_required_keys():
     required = {"label", "base_url", "default_model", "supported"}
     for k, v in PROVIDER_PRESETS.items():
         assert required.issubset(v.keys()), f"missing keys in {k}"
+
+
+def test_minimax_supported():
+    p = PROVIDER_PRESETS["MiniMax"]
+    assert p["supported"] is True
+    assert p["base_url"] == "https://api.MiniMax.chat/v1"
+    assert p["default_model"] == "MiniMax-M3"

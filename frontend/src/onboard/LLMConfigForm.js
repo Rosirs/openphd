@@ -1,0 +1,52 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useState } from 'react';
+import { ProviderPicker } from './ProviderPicker';
+const PRESETS = {
+    openai: { base_url: 'https://api.openai.com/v1', default_model: 'gpt-4o-mini' },
+    deepseek: { base_url: 'https://api.deepseek.com/v1', default_model: 'deepseek-chat' },
+    moonshot: { base_url: 'https://api.moonshot.cn/v1', default_model: 'moonshot-v1-8k' },
+    custom: { base_url: '', default_model: '' },
+    anthropic: { base_url: 'https://api.anthropic.com', default_model: 'claude-3-5-sonnet-20241022' },
+};
+export function LLMConfigForm({ providers, initial, onSave, onCancel, onTest, }) {
+    const [provider, setProvider] = useState(initial?.llm_provider || 'openai');
+    const [baseUrl, setBaseUrl] = useState(initial?.base_url || PRESETS[provider].base_url);
+    const [modelName, setModelName] = useState(initial?.model_name || PRESETS[provider].default_model);
+    const [apiKey, setApiKey] = useState(initial?.api_key || '');
+    const [showKey, setShowKey] = useState(false);
+    const [testStatus, setTestStatus] = useState(null);
+    const [testing, setTesting] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const onProviderChange = (k) => {
+        setProvider(k);
+        if (!initial?.base_url)
+            setBaseUrl(PRESETS[k]?.base_url || '');
+        if (!initial?.model_name)
+            setModelName(PRESETS[k]?.default_model || '');
+    };
+    const data = {
+        llm_provider: provider, base_url: baseUrl,
+        model_name: modelName, api_key: apiKey,
+    };
+    const handleTest = async () => {
+        if (!onTest || !apiKey)
+            return;
+        setTesting(true);
+        try {
+            setTestStatus(await onTest(data));
+        }
+        finally {
+            setTesting(false);
+        }
+    };
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            await onSave(data);
+        }
+        finally {
+            setSaving(false);
+        }
+    };
+    return (_jsxs("div", { className: "llm-config-form", children: [_jsxs("label", { children: ["Provider", _jsx(ProviderPicker, { providers: providers, value: provider, onChange: onProviderChange })] }), _jsxs("label", { children: ["Base URL", _jsx("input", { "data-testid": "base-url", value: baseUrl, onChange: (e) => setBaseUrl(e.target.value) })] }), _jsxs("label", { children: ["Model", _jsx("input", { "data-testid": "model-name", value: modelName, onChange: (e) => setModelName(e.target.value) })] }), _jsxs("label", { children: ["API Key", _jsxs("div", { style: { display: 'flex', gap: 4 }, children: [_jsx("input", { "data-testid": "api-key", type: showKey ? 'text' : 'password', value: apiKey, onChange: (e) => setApiKey(e.target.value), placeholder: "sk-...", style: { flex: 1 } }), _jsx("button", { type: "button", onClick: () => setShowKey(!showKey), children: showKey ? '🙈' : '👁' })] })] }), testStatus && (_jsxs("div", { className: testStatus.ok ? 'test-ok' : 'test-fail', children: [testStatus.ok ? '✅' : '❌', " ", testStatus.message, " (", testStatus.latency_ms, "ms)"] })), _jsxs("div", { className: "actions", children: [onCancel && _jsx("button", { onClick: onCancel, children: "Cancel" }), onTest && (_jsx("button", { "data-testid": "test-btn", onClick: handleTest, disabled: testing || !apiKey, children: testing ? 'Testing...' : 'Test Connection' })), _jsx("button", { "data-testid": "save-btn", onClick: handleSave, disabled: saving, children: saving ? 'Saving...' : 'Save' })] })] }));
+}

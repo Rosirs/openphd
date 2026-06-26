@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from phd_agent.api.chat import router as chat_router
 from phd_agent.api.tools import router as tools_router
 from phd_agent.api.canvas import router as canvas_router
+from phd_agent.api.onboard import router as onboard_router
 
 
 def create_app() -> FastAPI:
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(tools_router)
     app.include_router(canvas_router)
+    app.include_router(onboard_router)
 
     @app.get("/health")
     def health() -> dict:

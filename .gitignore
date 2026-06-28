@@ -19,3 +19,12 @@ coverage/
 
 # Runtime data
 data/
+backend/data/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Claude Code session/cache (do not commit)
+.claude/

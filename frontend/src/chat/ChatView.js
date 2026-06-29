@@ -5,6 +5,11 @@ import { ChatInput } from './ChatInput';
 import { ToolCallIndicator } from './ToolCallIndicator';
 import { SettingsModal } from '../onboard/SettingsModal';
 import { api, onboardApi } from '../api/client';
+const STARTERS = [
+    'Find me three recent papers on retrieval-augmented generation.',
+    'Draft a polite email to a professor about joining their lab.',
+    'Polish the introduction of my research statement.',
+];
 export function ChatView({ userId, status: initialStatus, onProfileChange, }) {
     const [conversationId, setConversationId] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -59,8 +64,5 @@ export function ChatView({ userId, status: initialStatus, onProfileChange, }) {
         setStatus(s);
         await onProfileChange();
     };
-    const providerLabel = status.profile
-        ? `${status.profile.llm_provider} · ${status.profile.model_name}`
-        : 'mock LLM';
-    return (_jsxs("div", { className: "chat-view", children: [_jsxs("header", { className: "chat-header", children: [_jsx("span", { className: "logo", children: "PhD-Agent" }), _jsx("span", { className: "provider-tag", children: providerLabel }), _jsx("button", { "data-testid": "settings-btn", onClick: () => setShowSettings(true), className: "icon-btn", children: "\u2699" })] }), _jsx(MessageList, { messages: messages }), _jsx(ToolCallIndicator, { active: activeTools }), error && _jsx("div", { className: "chat-error", children: error }), _jsx(ChatInput, { onSend: send, disabled: busy || !conversationId }), showSettings && (_jsx(SettingsModal, { status: status, onClose: () => setShowSettings(false), onSave: refreshStatus, onTest: async (data) => (await onboardApi.test(data)) }))] }));
+    return (_jsxs("div", { className: "chat-view", children: [_jsxs("header", { className: "manuscript-header", children: [_jsx("span", { className: "run-meta", children: "PHDA / CHAT" }), _jsxs("span", { className: "run-title", children: ["a desk at night", _jsx("strong", { children: "conversation" })] }), _jsx("button", { "data-testid": "settings-btn", onClick: () => setShowSettings(true), className: "btn", style: { padding: '6px 12px', fontSize: 12 }, "aria-label": "Settings", title: "Settings", children: "\u2699" })] }), _jsxs("div", { className: "chat-stage", children: [activeTools.length > 0 && _jsx("div", { className: "brass-bar", "aria-hidden": "true" }), _jsx(MessageList, { messages: messages, starters: STARTERS, onPickStarter: send, busy: busy }), _jsx(ToolCallIndicator, { active: activeTools }), error && _jsx("div", { className: "chat-error", children: error }), _jsx(ChatInput, { onSend: send, disabled: busy || !conversationId })] }), showSettings && (_jsx(SettingsModal, { status: status, onClose: () => setShowSettings(false), onSave: refreshStatus, onTest: async (data) => (await onboardApi.test(data)) }))] }));
 }

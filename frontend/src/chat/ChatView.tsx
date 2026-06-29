@@ -6,6 +6,12 @@ import { SettingsModal } from '../onboard/SettingsModal';
 import { api, onboardApi } from '../api/client';
 import type { Message, OnboardStatus, SaveProfileBody, TestResponse } from '../api/types';
 
+const STARTERS = [
+  'Find me three recent papers on retrieval-augmented generation.',
+  'Draft a polite email to a professor about joining their lab.',
+  'Polish the introduction of my research statement.',
+];
+
 export function ChatView({
   userId, status: initialStatus, onProfileChange,
 }: {
@@ -67,21 +73,31 @@ export function ChatView({
     await onProfileChange();
   };
 
-  const providerLabel = status.profile
-    ? `${status.profile.llm_provider} · ${status.profile.model_name}`
-    : 'mock LLM';
-
   return (
     <div className="chat-view">
-      <header className="chat-header">
-        <span className="logo">PhD-Agent</span>
-        <span className="provider-tag">{providerLabel}</span>
-        <button data-testid="settings-btn" onClick={() => setShowSettings(true)} className="icon-btn">⚙</button>
+      <header className="manuscript-header">
+        <span className="run-meta">PHDA / CHAT</span>
+        <span className="run-title">a desk at night<strong>conversation</strong></span>
+        <button
+          data-testid="settings-btn"
+          onClick={() => setShowSettings(true)}
+          className="btn"
+          style={{ padding: '6px 12px', fontSize: 12 }}
+          aria-label="Settings"
+          title="Settings"
+        >
+          ⚙
+        </button>
       </header>
-      <MessageList messages={messages} />
-      <ToolCallIndicator active={activeTools} />
-      {error && <div className="chat-error">{error}</div>}
-      <ChatInput onSend={send} disabled={busy || !conversationId} />
+
+      <div className="chat-stage">
+        {activeTools.length > 0 && <div className="brass-bar" aria-hidden="true" />}
+        <MessageList messages={messages} starters={STARTERS} onPickStarter={send} busy={busy} />
+        <ToolCallIndicator active={activeTools} />
+        {error && <div className="chat-error">{error}</div>}
+        <ChatInput onSend={send} disabled={busy || !conversationId} />
+      </div>
+
       {showSettings && (
         <SettingsModal
           status={status}

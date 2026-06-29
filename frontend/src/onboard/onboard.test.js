@@ -30,3 +30,16 @@ test('selecting provider autofills base_url and model', async () => {
     expect(baseUrl.value).toContain('deepseek');
     expect(model.value).toBe('deepseek-chat');
 });
+test('selecting MiniMax autofills MiniMax base_url and model', async () => {
+    const user = userEvent.setup();
+    render(_jsx(LLMConfigForm, { providers: [
+            { key: 'openai', label: 'OpenAI', supported: true },
+            { key: 'MiniMax', label: 'MiniMax', supported: true },
+        ], onSave: () => { }, onCancel: () => { } }));
+    const select = screen.getByTestId('provider-picker');
+    await user.selectOptions(select, 'MiniMax');
+    const baseUrl = screen.getByTestId('base-url');
+    const model = screen.getByTestId('model-name');
+    expect(baseUrl.value).toBe('https://api.MiniMax.chat/v1');
+    expect(model.value).toBe('MiniMax-M3');
+});

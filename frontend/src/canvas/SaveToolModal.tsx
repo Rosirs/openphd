@@ -23,10 +23,14 @@ export function SaveToolModal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Save as my tool</h2>
+      <div className="modal wide" onClick={(e) => e.stopPropagation()}>
+        <h2>Save as <em>my tool</em></h2>
+        <p className="hint">
+          Name it, give it an ID, and describe what it does. The system prompt
+          and the sub-pipeline are sent to the LLM together.
+        </p>
         <label>
-          Tool ID (unique, lowercase)
+          Tool ID
           <input
             data-testid="tool-id"
             value={toolId}
@@ -44,7 +48,7 @@ export function SaveToolModal({
           />
         </label>
         <label>
-          System Prompt (your intent — what should this tool do?)
+          System prompt — what should this tool do?
           <textarea
             data-testid="tool-prompt"
             value={systemPrompt}
@@ -52,23 +56,25 @@ export function SaveToolModal({
             placeholder="Search arxiv for recent papers and polish the summary."
           />
         </label>
-        <p className="sub-tools">Sub-tools: {subTools.join(', ')}</p>
+        <div className="sub-tools">
+          Sub-tools: {subTools.join(' › ')}
+        </div>
         {preview && (
           <details>
-            <summary style={{ cursor: 'pointer', color: '#8cf' }}>Preview augmented prompt</summary>
-            <pre style={{
-              background: '#000', padding: 8, fontSize: '0.8em',
-              whiteSpace: 'pre-wrap', maxHeight: 200, overflowY: 'auto',
-            }}>{preview}</pre>
+            <summary>Preview augmented prompt</summary>
+            <pre className="preview-box">{preview}</pre>
           </details>
         )}
         <div className="actions">
-          <button onClick={onClose}>Cancel</button>
+          <button className="btn" onClick={onClose}>Cancel</button>
           <button
+            className="btn btn-primary"
             data-testid="modal-save"
             disabled={!toolId || !name}
             onClick={() => onSave({ tool_id: toolId, name, system_prompt: systemPrompt })}
-          >Save</button>
+          >
+            Save
+          </button>
         </div>
       </div>
     </div>

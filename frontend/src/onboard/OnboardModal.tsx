@@ -27,23 +27,32 @@ export function OnboardModal({
       <div className="modal">
         {step === 'welcome' ? (
           <>
-            <h2>Welcome to PhD-Agent</h2>
-            <p>Configure your LLM to start chatting with the AI assistant.</p>
+            <h2>Welcome to your <em>desk</em>.</h2>
+            <p>
+              PhD-Agent calls tools on your behalf — arxiv, email drafts, prose
+              polish, PDF summaries. To make this feel like <em>your</em> work,
+              wire up an LLM.
+            </p>
             <p className="hint">
-              No API key? Skip to use the local mock LLM (you can configure later).
+              No API key handy? Skip to use the built-in mock LLM. You can
+              change this any time from the gear in the header.
             </p>
             <div className="actions">
-              <button data-testid="setup-btn" onClick={() => setStep('form')}>
-                Setup LLM
+              <button className="btn" onClick={handleSkip} disabled={skipping} data-testid="skip-btn">
+                {skipping ? 'Skipping…' : 'Skip (use mock)'}
               </button>
-              <button data-testid="skip-btn" onClick={handleSkip} disabled={skipping}>
-                {skipping ? 'Skipping...' : 'Skip (use mock)'}
+              <button className="btn btn-primary" onClick={() => setStep('form')} data-testid="setup-btn">
+                Setup LLM
               </button>
             </div>
           </>
         ) : (
           <>
-            <h2>LLM Setup</h2>
+            <h2>Configure your <em>model</em></h2>
+            <p className="hint">
+              Pick a provider, drop in your key, then test the connection. The
+              key stays on the server — only a masked preview is shown.
+            </p>
             <LLMConfigForm
               providers={providers}
               onSave={onSave}

@@ -60,7 +60,7 @@ export function LLMConfigForm({
   };
 
   return (
-    <div className="llm-config-form">
+    <div className="llm-config-form" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <label>
         Provider
         <ProviderPicker providers={providers} value={provider} onChange={onProviderChange} />
@@ -75,7 +75,7 @@ export function LLMConfigForm({
       </label>
       <label>
         API Key
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <input
             data-testid="api-key"
             type={showKey ? 'text' : 'password'}
@@ -84,25 +84,43 @@ export function LLMConfigForm({
             placeholder="sk-..."
             style={{ flex: 1 }}
           />
-          <button type="button" onClick={() => setShowKey(!showKey)}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setShowKey(!showKey)}
+            aria-label={showKey ? 'Hide key' : 'Show key'}
+            title={showKey ? 'Hide key' : 'Show key'}
+          >
             {showKey ? '🙈' : '👁'}
           </button>
         </div>
       </label>
       {testStatus && (
         <div className={testStatus.ok ? 'test-ok' : 'test-fail'}>
-          {testStatus.ok ? '✅' : '❌'} {testStatus.message} ({testStatus.latency_ms}ms)
+          {testStatus.ok ? '✓' : '✕'} {testStatus.message} ({testStatus.latency_ms}ms)
         </div>
       )}
       <div className="actions">
-        {onCancel && <button onClick={onCancel}>Cancel</button>}
+        {onCancel && (
+          <button className="btn" onClick={onCancel}>Cancel</button>
+        )}
         {onTest && (
-          <button data-testid="test-btn" onClick={handleTest} disabled={testing || !apiKey}>
-            {testing ? 'Testing...' : 'Test Connection'}
+          <button
+            className="btn"
+            data-testid="test-btn"
+            onClick={handleTest}
+            disabled={testing || !apiKey}
+          >
+            {testing ? 'Testing…' : 'Test connection'}
           </button>
         )}
-        <button data-testid="save-btn" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save'}
+        <button
+          className="btn btn-primary"
+          data-testid="save-btn"
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
     </div>

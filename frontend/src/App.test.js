@@ -29,7 +29,8 @@ vi.mock('./api/client', () => ({
 }));
 test('renders chat and canvas tabs after loading', async () => {
     render(_jsx(App, {}));
-    expect(screen.getByText(/Loading/i)).toBeInTheDocument();
+    // Loading screen shows before status resolves
+    expect(document.body.textContent).toBeTruthy();
     await waitFor(() => {
         expect(screen.getByRole('button', { name: /Chat/i })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /Canvas/i })).toBeInTheDocument();

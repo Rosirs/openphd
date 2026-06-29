@@ -12,15 +12,17 @@ export function SettingsModal({
   return (
     <div className="modal-backdrop" data-testid="settings-modal" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>LLM Settings</h2>
+        <h2>LLM <em>settings</em></h2>
         {status.profile ? (
           <p className="hint">
             Current: <strong>{status.profile.llm_provider}</strong> · {status.profile.model_name}
             <br />
-            Key: <code>{status.profile.api_key_masked}</code>
+            Key: <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--verdigris)' }}>
+              {status.profile.api_key_masked}
+            </code>
           </p>
         ) : (
-          <p className="hint">No LLM configured yet (using mock).</p>
+          <p className="hint">No LLM configured yet — using the built-in mock.</p>
         )}
         <LLMConfigForm
           providers={status.providers}

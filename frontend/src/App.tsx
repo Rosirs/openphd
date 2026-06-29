@@ -38,19 +38,65 @@ export default function App() {
   };
 
   if (!status) {
-    return <div style={{ padding: 24 }}>Loading…</div>;
+    return (
+      <div className="app" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: 'var(--faded)', fontFamily: 'var(--font-display)', fontStyle: 'italic' }}>
+          opening the desk…
+        </div>
+      </div>
+    );
   }
+
+  const providerLabel = status.profile
+    ? `${status.profile.llm_provider} · ${status.profile.model_name}`
+    : 'mock LLM';
+  const isLive = !!status.profile;
 
   return (
     <div className="app">
-      <header className="tabs">
-        <button className={tab === 'chat' ? 'active' : ''} onClick={() => setTab('chat')}>Chat</button>
-        <button className={tab === 'canvas' ? 'active' : ''} onClick={() => setTab('canvas')}>Canvas</button>
-      </header>
-      <main>
+      <aside className="rail">
+        <div className="brand">
+          <span className="brand-mark">PhD<em>·</em>Agent</span>
+        </div>
+
+        <nav className="nav" aria-label="Workspace sections">
+          <div className="nav-label">Workspace</div>
+          <button
+            className={`nav-item ${tab === 'chat' ? 'active' : ''}`}
+            onClick={() => setTab('chat')}
+            data-testid="tab-chat"
+          >
+            <span className="glyph">§</span>
+            <span>Chat</span>
+          </button>
+          <button
+            className={`nav-item ${tab === 'canvas' ? 'active' : ''}`}
+            onClick={() => setTab('canvas')}
+            data-testid="tab-canvas"
+          >
+            <span className="glyph">‡</span>
+            <span>Canvas</span>
+          </button>
+        </nav>
+
+        <div className="rail-spacer" />
+
+        <div className="provider-card">
+          <div className="row">
+            <span className="name">LLM</span>
+            <span className={`status ${isLive ? 'live' : 'mock'}`}>
+              {isLive ? 'live' : 'mock'}
+            </span>
+          </div>
+          <span className="model">{providerLabel}</span>
+        </div>
+      </aside>
+
+      <main className="work">
         {tab === 'chat' && <ChatView userId={userId} status={status} onProfileChange={refresh} />}
         {tab === 'canvas' && <ToolBuilderCanvas userId={userId} />}
       </main>
+
       {showOnboard && status && (
         <OnboardModal
           providers={status.providers}
